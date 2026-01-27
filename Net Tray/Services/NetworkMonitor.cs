@@ -48,7 +48,7 @@ namespace NetTray.Services
                 // Пробуем ping
                 using (var ping = new Ping())
                 {
-                    var reply = ping.Send(_targetHost, 3000);
+                    var reply = ping.Send(_targetHost, 999);
                     isOnline = reply.Status == IPStatus.Success;
                     pingResult = isOnline ? (long?)reply.RoundtripTime : null;
                 }

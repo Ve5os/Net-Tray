@@ -47,23 +47,33 @@ namespace NetTray
 
         private Icon CreateIcon(Color color)
         {
-            Bitmap bmp = new Bitmap(16, 16);
-            using (Graphics g = Graphics.FromImage(bmp))
+            Bitmap bmp = null;
+            try
             {
-                g.Clear(Color.Transparent);
-                using (SolidBrush brush = new SolidBrush(color))
+                bmp = new Bitmap(16, 16);
+                using (Graphics g = Graphics.FromImage(bmp))
                 {
-                    g.FillEllipse(brush, 0, 0, 15, 15);
+                    g.Clear(Color.Transparent);
+                    using (SolidBrush brush = new SolidBrush(color))
+                    {
+                        g.FillEllipse(brush, 0, 0, 15, 15);
+                    }
                 }
+                return Icon.FromHandle(bmp.GetHicon());
             }
-            return Icon.FromHandle(bmp.GetHicon());
+            finally
+            {
+                bmp?.Dispose(); // ← ГАРАНТИРОВАННОЕ ОСВОБОЖДЕНИЕ
+            }
         }
 
         private void OnNetworkStatusChanged(object sender, Models.NetworkStatusChangedEventArgs e)
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
-                _trayIcon.Icon = e.IsOnline ? CreateIcon(Color.Green) : CreateIcon(Color.Red);
+                var oldIcon = _trayIcon.Icon;
+                _trayIcon.Icon = CreateIcon(e.IsOnline ? Color.Green : Color.Red);
+                oldIcon?.Dispose(); // ← ОСВОБОЖДАЕМ
 
                 // Простой статус в подсказке
                 _trayIcon.Text = e.IsOnline ?
@@ -115,8 +125,8 @@ namespace NetTray
 
         protected override void OnExit(ExitEventArgs e)
         {
-            _trayIcon?.Dispose();
-            _networkMonitor?.Dispose();
+            _trayIcon.Icon?.Dispose();
+            _trayIcon.Dispose();
             base.OnExit(e);
         }
     }

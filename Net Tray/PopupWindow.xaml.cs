@@ -18,15 +18,15 @@ namespace NetTray
         private readonly NetworkMonitor _monitor;
         private readonly List<PingPoint> _pingPoints = new List<PingPoint>();
         private DispatcherTimer _hideTimer;
-        private const int AnimationMS = 250;
-        private const int HideDelayMS = 150;
+        private const int AnimationMS = 100;
+        private const int HideDelayMS = 100;
         private bool _isClosing = false;
 
         // Константы для графика
-        private const int MAX_POINTS = 20;         // Сколько точек хранить
-        private const double MARGIN_TOP = 20;      // ВОЗВРАЩАЕМ 20 ДЛЯ ВЫСОТЫ 150
-        private const double MARGIN_BOTTOM = 20;   // ВОЗВРАЩАЕМ 20 ДЛЯ ВЫСОТЫ 150
-        private const double PADDING = 10;         // Запас для масштабирования
+        private const int MAX_POINTS = 20;       
+        private const double MARGIN_TOP = 20;    
+        private const double MARGIN_BOTTOM = 20; 
+        private const double PADDING = 10;       
 
         // Класс для хранения точек с цветом
         private class PingPoint
