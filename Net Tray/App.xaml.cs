@@ -64,8 +64,10 @@ namespace NetTray
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
                 _trayIcon.Icon = e.IsOnline ? CreateIcon(Color.Green) : CreateIcon(Color.Red);
+
+                // Простой статус в подсказке
                 _trayIcon.Text = e.IsOnline ?
-                    $"NetTray - Онлайн (пинг: {e.Ping}ms)" :
+                    $"NetTray - Онлайн ({e.Ping}ms)" :
                     "NetTray - Офлайн";
             });
         }

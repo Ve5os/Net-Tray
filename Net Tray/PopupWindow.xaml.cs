@@ -24,8 +24,8 @@ namespace NetTray
 
         // Константы для графика
         private const int MAX_POINTS = 20;         // Сколько точек хранить
-        private const double MARGIN_TOP = 20;      // Отступ сверху
-        private const double MARGIN_BOTTOM = 20;   // Отступ снизу
+        private const double MARGIN_TOP = 20;      // ВОЗВРАЩАЕМ 20 ДЛЯ ВЫСОТЫ 150
+        private const double MARGIN_BOTTOM = 20;   // ВОЗВРАЩАЕМ 20 ДЛЯ ВЫСОТЫ 150
         private const double PADDING = 10;         // Запас для масштабирования
 
         // Класс для хранения точек с цветом
@@ -173,6 +173,7 @@ namespace NetTray
             // Очищаем старые подписи
             var labelsToRemove = ChartCanvas.Children
                 .OfType<TextBlock>()
+                .Where(t => t.Name != "CurrentPing" && t.Name != "AvgPing" && t.Name != "PacketLoss")
                 .ToList();
 
             foreach (var label in labelsToRemove)
@@ -180,32 +181,33 @@ namespace NetTray
                 ChartCanvas.Children.Remove(label);
             }
 
-            // Добавляем минимальное значение слева
+            // Текущая высота графика = 150
+            double chartHeight = 150 - MARGIN_TOP - MARGIN_BOTTOM; // 150 - 15 - 15 = 120
+
+            // Добавляем минимальное значение слева (внизу)
             var minLabel = new TextBlock
             {
-                Text = $"{minValue:F0} мс",
+                Text = $"{minValue:F0} мс",  
                 FontSize = 9,
-                Foreground = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255)),
-                VerticalAlignment = VerticalAlignment.Bottom,
-                HorizontalAlignment = HorizontalAlignment.Left
+                Foreground = new SolidColorBrush(Color.FromArgb(180, 200, 200, 200)),
+                VerticalAlignment = VerticalAlignment.Bottom
             };
 
             Canvas.SetLeft(minLabel, 5);
-            Canvas.SetBottom(minLabel, MARGIN_BOTTOM - 15);
+            Canvas.SetTop(minLabel, MARGIN_TOP + chartHeight - 12);
             ChartCanvas.Children.Add(minLabel);
 
-            // Добавляем максимальное значение слева
+            // Добавляем максимальное значение слева (вверху)
             var maxLabel = new TextBlock
             {
-                Text = $"{maxValue:F0} мс",
+                Text = $"{maxValue:F0} мс", 
                 FontSize = 9,
-                Foreground = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255)),
-                VerticalAlignment = VerticalAlignment.Top,
-                HorizontalAlignment = HorizontalAlignment.Left
+                Foreground = new SolidColorBrush(Color.FromArgb(180, 200, 200, 200)),
+                VerticalAlignment = VerticalAlignment.Top
             };
 
             Canvas.SetLeft(maxLabel, 5);
-            Canvas.SetTop(maxLabel, MARGIN_TOP - 15);
+            Canvas.SetTop(maxLabel, MARGIN_TOP - 2);
             ChartCanvas.Children.Add(maxLabel);
 
             // Добавляем среднее значение посередине
@@ -213,14 +215,13 @@ namespace NetTray
             var avgLabel = new TextBlock
             {
                 Text = $"{avgValue:F0} мс",
-                FontSize = 9,
-                Foreground = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Left
+                FontSize = 8,
+                Foreground = new SolidColorBrush(Color.FromArgb(150, 180, 180, 180)),
+                VerticalAlignment = VerticalAlignment.Center
             };
 
             Canvas.SetLeft(avgLabel, 5);
-            Canvas.SetTop(avgLabel, MARGIN_TOP + (150 - MARGIN_TOP - MARGIN_BOTTOM) / 2 - 8);
+            Canvas.SetTop(avgLabel, MARGIN_TOP + chartHeight / 2 - 8);
             ChartCanvas.Children.Add(avgLabel);
         }
         private void DrawGrid()
@@ -228,7 +229,9 @@ namespace NetTray
             // Очищаем предыдущую сетку
             ChartCanvas.Children.Clear();
 
-            // Вертикальные линии сетки
+            double canvasHeight = 150; // Новая высота
+
+            // Вертикальные линии сетки (10 делений)
             for (int i = 0; i <= 10; i++)
             {
                 var line = new Line
@@ -236,29 +239,29 @@ namespace NetTray
                     X1 = i * 30,
                     Y1 = 0,
                     X2 = i * 30,
-                    Y2 = 150,
+                    Y2 = canvasHeight,
                     Stroke = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
                     StrokeThickness = 0.5
                 };
                 ChartCanvas.Children.Add(line);
             }
 
-            // Горизонтальные линии сетки
+            // Горизонтальные линии сетки (5 делений)
             for (int i = 0; i <= 5; i++)
             {
                 var line = new Line
                 {
                     X1 = 0,
-                    Y1 = i * 30,
+                    Y1 = i * (canvasHeight / 5),
                     X2 = 300,
-                    Y2 = i * 30,
+                    Y2 = i * (canvasHeight / 5),
                     Stroke = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
                     StrokeThickness = 0.5
                 };
                 ChartCanvas.Children.Add(line);
             }
 
-            // Добавляем линию графика в конец, чтобы она была поверх сетки
+            // Добавляем линию графика
             ChartCanvas.Children.Add(ChartLine);
         }
 
@@ -303,24 +306,48 @@ namespace NetTray
 
                 UpdateChart();
 
-                // Обновляем статистику
+                // Обновляем текущий пинг
                 CurrentPing.Text = e.Ping.HasValue ? $"{e.Ping} мс" : "--";
-                StatusText.Text = e.IsOnline ? "Соединение стабильное" : "Нет соединения";
 
-                // Рассчитываем средний пинг (только онлайн значения)
-                var validValues = _pingPoints
-                    .Where(p => p.IsOnline && p.Value.HasValue)
-                    .Select(p => p.Value.Value)
-                    .ToList();
+                // РАССЧИТЫВАЕМ СРЕДНИЙ ПИНГ С УЧЕТОМ ОБРЫВОВ
+                double totalSum = 0;
+                int totalCount = 0;
 
-                if (validValues.Count > 0)
+                foreach (var point in _pingPoints)
                 {
-                    var avg = validValues.Average();
+                    if (point.IsOnline && point.Value.HasValue)
+                    {
+                        // Онлайн: используем реальный пинг
+                        totalSum += point.Value.Value;
+                        totalCount++;
+                    }
+                    else
+                    {
+                        // Оффлайн: считаем как 999 мс (плохое соединение)
+                        totalSum += 999;
+                        totalCount++;
+                    }
+                }
+
+                if (totalCount > 0)
+                {
+                    double avg = totalSum / totalCount;
                     AvgPing.Text = $"{avg:F0} мс";
+
+                    // Меняем цвет AVG в зависимости от качества
+                    if (avg < 100)
+                        AvgPing.Foreground = Brushes.LightGreen;    // Отлично
+                    else if (avg < 300)
+                        AvgPing.Foreground = Brushes.Yellow;        // Нормально
+                    else if (avg < 600)
+                        AvgPing.Foreground = Brushes.Orange;        // Плохо
+                    else
+                        AvgPing.Foreground = Brushes.Red;           // Очень плохо
                 }
                 else
                 {
                     AvgPing.Text = "--";
+                    AvgPing.Foreground = Brushes.White;
                 }
 
                 // Рассчитываем потери
@@ -328,6 +355,14 @@ namespace NetTray
                 var failed = _pingPoints.Count(p => !p.IsOnline);
                 var lossPercentage = total > 0 ? (failed * 100.0 / total) : 0;
                 PacketLoss.Text = $"{lossPercentage:F1}%";
+
+                // Меняем цвет потерь
+                if (lossPercentage < 5)
+                    PacketLoss.Foreground = Brushes.LightGreen;     // Отлично
+                else if (lossPercentage < 20)
+                    PacketLoss.Foreground = Brushes.Yellow;         // Нормально
+                else
+                    PacketLoss.Foreground = Brushes.Red;            // Плохо
             });
         }
 
@@ -365,8 +400,8 @@ namespace NetTray
             }
 
             double width = 300;
-            double height = 150;
-            double chartHeight = height - MARGIN_TOP - MARGIN_BOTTOM;
+            double height = 150; // Новая высота
+            double chartHeight = height - MARGIN_TOP - MARGIN_BOTTOM; // 150 - 15 - 15 = 120
             double valueRange = maxValue - minValue;
 
             // Добавляем подписи значений
@@ -376,9 +411,9 @@ namespace NetTray
             DrawColoredLine(minValue, valueRange, width, chartHeight);
         }
 
-        private void DrawColoredLine(double minValue = 0, double valueRange = 100, double width = 300, double chartHeight = 110)
+        private void DrawColoredLine(double minValue = 0, double valueRange = 100, double width = 300, double chartHeight = 120)
         {
-            // Очищаем все линии
+            // Очищаем все линии (кроме ChartLine)
             var linesToRemove = ChartCanvas.Children
                 .OfType<Polyline>()
                 .Where(p => p != ChartLine)
@@ -389,7 +424,7 @@ namespace NetTray
                 ChartCanvas.Children.Remove(line);
             }
 
-            // Разделяем точки на сегменты по статусу (онлайн/оффлайн)
+            // Разделяем точки на сегменты
             var segments = new List<List<PingPoint>>();
             var currentSegment = new List<PingPoint>();
 
@@ -397,7 +432,6 @@ namespace NetTray
             {
                 currentSegment.Add(_pingPoints[i]);
 
-                // Если следующая точка другого статуса или это последняя точка
                 if (i == _pingPoints.Count - 1 ||
                     _pingPoints[i].IsOnline != _pingPoints[i + 1].IsOnline)
                 {
@@ -417,10 +451,8 @@ namespace NetTray
                     StrokeLineJoin = PenLineJoin.Round
                 };
 
-                // Выбираем цвет в зависимости от статуса
                 polyline.Stroke = segment[0].IsOnline ? Brushes.Green : Brushes.Red;
 
-                // Добавляем точки
                 for (int i = 0; i < segment.Count; i++)
                 {
                     int globalIndex = _pingPoints.IndexOf(segment[i]);
@@ -428,36 +460,36 @@ namespace NetTray
 
                     if (segment[i].IsOnline && segment[i].Value.HasValue)
                     {
-                        // Онлайн точка: нормальная позиция
                         double normalizedY = (segment[i].Value.Value - minValue) / valueRange;
                         double y = MARGIN_TOP + chartHeight - (normalizedY * chartHeight);
                         polyline.Points.Add(new Point(x, y));
                     }
                     else
                     {
-                        // Оффлайн точка: рисуем внизу
-                        double y = MARGIN_TOP + chartHeight + 5; // Немного ниже графика
+                        double y = MARGIN_TOP + chartHeight + 5; // Чуть больше отступ для высоты 150
                         polyline.Points.Add(new Point(x, y));
                     }
                 }
 
-                // Добавляем линию на канвас
                 ChartCanvas.Children.Add(polyline);
             }
+        
 
-            // Добавляем горизонтальную линию посередине для ориентира
-            var middleLine = new Line
-            {
-                X1 = PADDING,
-                Y1 = MARGIN_TOP + chartHeight / 2,
-                X2 = width - PADDING,
-                Y2 = MARGIN_TOP + chartHeight / 2,
-                Stroke = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
-                StrokeThickness = 0.5,
-                StrokeDashArray = new DoubleCollection { 5, 5 }
-            };
-            ChartCanvas.Children.Add(middleLine);
-        }
+        // Добавляем горизонтальную линию посередине для ориентира (опционально)
+        /*
+        var middleLine = new Line
+        {
+            X1 = PADDING,
+            Y1 = MARGIN_TOP + chartHeight / 2,
+            X2 = width - PADDING,
+            Y2 = MARGIN_TOP + chartHeight / 2,
+            Stroke = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+            StrokeThickness = 0.5,
+            StrokeDashArray = new DoubleCollection { 5, 5 }
+        };
+        ChartCanvas.Children.Add(middleLine);
+        */
+    }
 
         protected override void OnClosed(EventArgs e)
         {
