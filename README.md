@@ -1,5 +1,5 @@
-Net Tray - Русский
+# Net Tray - [Русский](https://github.com/Ve5os/Net-Tray/blob/master/README_RU.md) 
 
-Net Tray — это минималистичное приложение для Windows 11\10, которое в реальном времени отображает статус активности сетевого подключения прямо в системном трее. Программа написана с фокусом на классический стиль Windows 11 и максимальную простоту использования.
+**Net Tray** — This minimalist app for Windows 11/10 displays network connection activity in real time directly in the system tray. It's designed with a classic Windows 11 style and maximum ease of use in mind.
 
-Актуально для анализа проблем с сетью: помогает быстро определить, работает ли сетевое соединение в целом или проблема связана с блокировкой конкретного ресурса (например, сайта или сервиса).
+---
