@@ -55,10 +55,11 @@
                 <Canvas x:Name="ChartCanvas"
                         Width="300"
                         Height="150">
+                    <!-- ChartLine теперь создается динамически в коде -->
+                    <!-- Основная линия будет добавлена последней -->
                     <Polyline x:Name="ChartLine"
-                              Stroke="Green"
-                              StrokeThickness="2"
-                              StrokeLineJoin="Round"/>
+                              StrokeThickness="0"/>
+                    <!-- Скрываем дефолтную линию -->
                 </Canvas>
 
             </Border>
