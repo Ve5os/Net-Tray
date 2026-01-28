@@ -83,7 +83,7 @@ namespace NetTray
             }
             finally
             {
-                bmp?.Dispose(); // ← ГАРАНТИРОВАННОЕ ОСВОБОЖДЕНИЕ
+                bmp?.Dispose(); // ← ГАРАНТИРОВАННОЕ ОСВОБОЖДЕНИЕ 
             }
         }
 
