@@ -1,8 +1,19 @@
 # Net Tray - [Русский](https://github.com/Ve5os/Net-Tray/blob/master/README_RU.md) 
 
-**Net Tray** — This minimalist app for Windows 11/10 displays network connection activity in real time directly in the system tray. It's designed with a classic Windows 11 style and maximum ease of use in mind.
+**A lightweight Windows system tray application that monitors YouTube accessibility in real-time. Unlike simple network connectivity checks, NetTray specifically tests whether YouTube is accessible, providing accurate status during internet restrictions or regional blockages.** 
+## 🔧 Features
+  - Real-time monitoring: Continuously checks YouTube HTTPS availability every 2 seconds
+  - System tray integration: Green/red icon indicates YouTube accessibility status
+  - Performance metrics: Displays current ping, average latency, and packet loss statistics
+  - Interactive graph: Visualizes network stability with color-coded connection history
+  - Windows 11 style: Modern UI with smooth animations matching Windows 11 design language
+  - Minimal resource usage: Runs efficiently in background
 ---
-Ping is performed relative to the YouTube website.
+## 📦 Installation
+
+1. Download the latest [release](https://github.com/ve5os/Net-Tray/releases)  
+2. Run `Net.Tray.exe`  
+3. The app will appear in the system tray (bottom right)  
 ---
 README WIP!!!
 
