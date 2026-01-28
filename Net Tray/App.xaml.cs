@@ -3,6 +3,7 @@ using System;
 using System.Windows;
 using System.Windows.Forms;
 using System.Drawing;
+using System.Threading;
 
 namespace NetTray
 {
@@ -12,9 +13,28 @@ namespace NetTray
         private ContextMenuStrip _trayMenu;
         private PopupWindow _popupWindow = null;
         private NetworkMonitor _networkMonitor;
+        private static Mutex _mutex;
+        private const string APP_MUTEX_NAME = "NetTray_SingleInstance_Mutex";
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            // ПРОВЕРЯЕМ, УЖЕ ЛИ ЗАПУЩЕНО ПРИЛОЖЕНИЕ
+            bool createdNew;
+            _mutex = new Mutex(true, APP_MUTEX_NAME, out createdNew);
+
+            if (!createdNew)
+            {
+                // Приложение уже запущено - показываем сообщение и выходим
+                System.Windows.Forms.MessageBox.Show("NetTray уже запущен!\n\nПроверьте иконку в системном трее.",
+                              "NetTray",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Information);
+
+                _mutex?.Dispose();
+                Shutdown();
+                return;
+            }
+
             base.OnStartup(e);
 
             _networkMonitor = new NetworkMonitor();
@@ -69,16 +89,27 @@ namespace NetTray
 
         private void OnNetworkStatusChanged(object sender, Models.NetworkStatusChangedEventArgs e)
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            Dispatcher.Invoke(() =>
             {
                 var oldIcon = _trayIcon.Icon;
-                _trayIcon.Icon = CreateIcon(e.IsOnline ? Color.Green : Color.Red);
-                oldIcon?.Dispose(); // ← ОСВОБОЖДАЕМ
 
-                // Простой статус в подсказке
-                _trayIcon.Text = e.IsOnline ?
-                    $"NetTray - Онлайн ({e.Ping}ms)" :
-                    "NetTray - Офлайн";
+                // ТОЛЬКО ДВА СОСТОЯНИЯ:
+                if (e.IsOnline)
+                {
+                    // ОНЛАЙН - зеленый
+                    _trayIcon.Icon = CreateIcon(Color.Green);
+                    _trayIcon.Text = e.Ping.HasValue ?
+                        $"NetTray - YouTube доступен ({e.Ping}ms)" :
+                        "NetTray - YouTube доступен";
+                }
+                else
+                {
+                    // ОФФЛАЙН - красный
+                    _trayIcon.Icon = CreateIcon(Color.Red);
+                    _trayIcon.Text = "NetTray - YouTube недоступен";
+                }
+
+                oldIcon?.Dispose();
             });
         }
 

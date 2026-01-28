@@ -10,7 +10,7 @@ using System.Windows;
 [assembly: AssemblyTitle("Net Tray")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Ve5os")]
 [assembly: AssemblyProduct("Net Tray")]
 [assembly: AssemblyCopyright("Copyright ©  2026")]
 [assembly: AssemblyTrademark("")]
