@@ -3,7 +3,6 @@ using System;
 using System.Windows;
 using System.Windows.Forms;
 using System.Drawing;
-using System.Threading;
 
 namespace NetTray
 {
@@ -13,29 +12,19 @@ namespace NetTray
         private ContextMenuStrip _trayMenu;
         private PopupWindow _popupWindow = null;
         private NetworkMonitor _networkMonitor;
-        private static Mutex _mutex;
-        private const string APP_MUTEX_NAME = "NetTray_SingleInstance_Mutex";
+
+        // КЭШ ИКОНОК - создаем один раз
+        private Icon _greenIcon;
+        private Icon _redIcon;
+        private Icon _currentIcon = null;
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            // ПРОВЕРЯЕМ, УЖЕ ЛИ ЗАПУЩЕНО ПРИЛОЖЕНИЕ
-            bool createdNew;
-            _mutex = new Mutex(true, APP_MUTEX_NAME, out createdNew);
-
-            if (!createdNew)
-            {
-                // Приложение уже запущено - показываем сообщение и выходим
-                System.Windows.Forms.MessageBox.Show("NetTray уже запущен!\n\nПроверьте иконку в системном трее.",
-                              "NetTray",
-                              MessageBoxButtons.OK,
-                              MessageBoxIcon.Information);
-
-                _mutex?.Dispose();
-                Shutdown();
-                return;
-            }
-
             base.OnStartup(e);
+
+            // СОЗДАЕМ ИКОНКИ ОДИН РАЗ ПРИ ЗАПУСКЕ
+            _greenIcon = CreateIcon(Color.Green);
+            _redIcon = CreateIcon(Color.Red);
 
             _networkMonitor = new NetworkMonitor();
             _networkMonitor.StatusChanged += OnNetworkStatusChanged;
@@ -52,7 +41,10 @@ namespace NetTray
         {
             _trayIcon = new NotifyIcon();
 
-            _trayIcon.Icon = CreateIcon(Color.Red);
+            // Используем красную иконку по умолчанию
+            _trayIcon.Icon = _redIcon;
+            _currentIcon = _redIcon;
+
             _trayIcon.Text = "NetTray - Проверка сети";
             _trayIcon.Visible = true;
 
@@ -65,9 +57,11 @@ namespace NetTray
             _trayIcon.MouseClick += TrayIcon_Click;
         }
 
+        // ИСПРАВЛЕННЫЙ МЕТОД СОЗДАНИЯ ИКОНКИ
         private Icon CreateIcon(Color color)
         {
             Bitmap bmp = null;
+
             try
             {
                 bmp = new Bitmap(16, 16);
@@ -79,11 +73,25 @@ namespace NetTray
                         g.FillEllipse(brush, 0, 0, 15, 15);
                     }
                 }
-                return Icon.FromHandle(bmp.GetHicon());
+
+                // ПРОСТОЙ СПОСОБ - создаем иконку напрямую
+                IntPtr hIcon = bmp.GetHicon();
+                Icon icon = Icon.FromHandle(hIcon);
+
+                // Клонируем, чтобы можно было освободить оригинал
+                Icon clonedIcon = (Icon)icon.Clone();
+                icon.Dispose(); // Освобождаем оригинальную иконку
+
+                return clonedIcon;
+            }
+            catch
+            {
+                // Возвращаем стандартную иконку при ошибке
+                return SystemIcons.Application;
             }
             finally
             {
-                bmp?.Dispose(); // ← ГАРАНТИРОВАННОЕ ОСВОБОЖДЕНИЕ 
+                bmp?.Dispose();
             }
         }
 
@@ -91,73 +99,74 @@ namespace NetTray
         {
             Dispatcher.Invoke(() =>
             {
-                var oldIcon = _trayIcon.Icon;
+                // Проверяем, какая иконка нужна
+                bool needGreenIcon = e.IsOnline;
 
-                // ТОЛЬКО ДВА СОСТОЯНИЯ:
-                if (e.IsOnline)
+                if ((needGreenIcon && _currentIcon != _greenIcon) ||
+                    (!needGreenIcon && _currentIcon != _redIcon))
                 {
-                    // ОНЛАЙН - зеленый
-                    _trayIcon.Icon = CreateIcon(Color.Green);
-                    _trayIcon.Text = e.Ping.HasValue ?
-                        $"NetTray - YouTube доступен ({e.Ping}ms)" :
-                        "NetTray - YouTube доступен";
-                }
-                else
-                {
-                    // ОФФЛАЙН - красный
-                    _trayIcon.Icon = CreateIcon(Color.Red);
-                    _trayIcon.Text = "NetTray - YouTube недоступен";
+                    _trayIcon.Icon = needGreenIcon ? _greenIcon : _redIcon;
+                    _currentIcon = needGreenIcon ? _greenIcon : _redIcon;
                 }
 
-                oldIcon?.Dispose();
+                _trayIcon.Text = e.IsOnline ?
+                    $"NetTray - YouTube доступен ({e.Ping}ms)" :
+                    "NetTray - YouTube недоступен";
             });
         }
 
-        #region Обработчики событий трея
-
         private void TrayIcon_Click(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Left)
-            {
-                TogglePopup();
-            }
+            if (e.Button == MouseButtons.Left) TogglePopup();
         }
 
-        private void OnShowChartClicked(object sender, EventArgs e)
-        {
-            TogglePopup();
-        }
+        private void OnShowChartClicked(object sender, EventArgs e) => TogglePopup();
 
         private void OnExitClicked(object sender, EventArgs e)
         {
             _trayIcon.Visible = false;
-            _trayIcon.Dispose();
-            _networkMonitor?.Dispose();
             System.Windows.Application.Current.Shutdown();
         }
-
-        #endregion
 
         private void TogglePopup()
         {
             if (_popupWindow == null || !_popupWindow.IsVisible)
             {
-                // Если окна нет или оно скрыто - создаем и показываем
                 _popupWindow = new PopupWindow(_networkMonitor);
                 _popupWindow.Closed += (s, args) => _popupWindow = null;
                 _popupWindow.ShowWithAnimation();
             }
             else
             {
-                // Если окно видимо - закрываем с анимацией (как при клике вне окна)
                 _popupWindow.CloseWithAnimation();
             }
         }
 
         protected override void OnExit(ExitEventArgs e)
         {
-            _trayIcon.Icon?.Dispose();
-            _trayIcon.Dispose();
+            // ОСВОБОЖДАЕМ РЕСУРСЫ В ПРАВИЛЬНОМ ПОРЯДКЕ
+            _popupWindow?.Close();
+
+            _networkMonitor?.Dispose();
+            _networkMonitor = null;
+
+            if (_trayIcon != null)
+            {
+                _trayIcon.Visible = false;
+
+                // Важно: сначала убираем иконку, потом освобождаем
+                _trayIcon.Icon = null;
+                _trayIcon.Dispose();
+                _trayIcon = null;
+            }
+
+            // Освобождаем кэшированные иконки
+            _greenIcon?.Dispose();
+            _redIcon?.Dispose();
+            _greenIcon = null;
+            _redIcon = null;
+            _currentIcon = null;
+
             base.OnExit(e);
         }
     }
